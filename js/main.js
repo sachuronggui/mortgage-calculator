@@ -4,10 +4,12 @@
 
 // 保存计算器实例
 let calculator = null;
+let combinedCalculator = null; // 组合贷款计算器实例
 
 // 图表实例
 let comparisonChart = null;
 let prepaymentComparisonChart = null;
+let combinedLoanChart = null; // 组合贷款图表实例
 
 // DOM元素引用
 const loanForm = document.getElementById('loanForm');
@@ -18,6 +20,10 @@ const loanAmountInput = document.getElementById('loanAmount');
 const interestRateInput = document.getElementById('interestRate');
 const loanTermSelect = document.getElementById('loanTerm');
 const showFullPaymentScheduleCheckbox = document.getElementById('showFullPaymentSchedule');
+
+// 组合贷款元素引用
+const calculateCombinedBtn = document.getElementById('calculateCombinedBtn');
+const showFullCombinedScheduleCheckbox = document.getElementById('showFullCombinedSchedule');
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
@@ -31,6 +37,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 监听展示完整计划的开关
     showFullPaymentScheduleCheckbox.addEventListener('change', toggleFullPaymentSchedule);
+    
+    // 组合贷款相关事件监听
+    calculateCombinedBtn.addEventListener('click', handleCombinedLoanCalculate);
+    showFullCombinedScheduleCheckbox.addEventListener('change', toggleFullCombinedSchedule);
 });
 
 /**
@@ -619,4 +629,321 @@ function formatCurrency(value) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     }).format(value) + ' 元';
+}
+
+/**
+ * 处理组合贷款计算
+ */
+function handleCombinedLoanCalculate() {
+    // 获取公积金贷款数据
+    const pfAmount = parseFloat(document.getElementById('pfAmount').value);
+    const pfRate = parseFloat(document.getElementById('pfRate').value);
+    const pfTerm = parseInt(document.getElementById('pfTerm').value);
+    
+    // 获取商业贷款数据
+    const commAmount = parseFloat(document.getElementById('commAmount').value);
+    const commRate = parseFloat(document.getElementById('commRate').value);
+    const commTerm = parseInt(document.getElementById('commTerm').value);
+    
+    // 获取还款方式
+    const repaymentMethod = document.querySelector('input[name="combinedPaymentType"]:checked').value;
+    
+    // 验证数据
+    if (isNaN(pfAmount) || pfAmount < 0) {
+        alert('请输入有效的公积金贷款金额');
+        return;
+    }
+    
+    if (isNaN(commAmount) || commAmount < 0) {
+        alert('请输入有效的商业贷款金额');
+        return;
+    }
+    
+    if (pfAmount === 0 && commAmount === 0) {
+        alert('公积金贷款金额和商业贷款金额不能同时为0');
+        return;
+    }
+    
+    // 创建组合贷款计算器实例
+    combinedCalculator = new CombinedLoanCalculator(
+        pfAmount, pfRate, pfTerm, 
+        commAmount, commRate, commTerm, 
+        repaymentMethod
+    );
+    
+    // 显示组合贷款结果
+    displayCombinedLoanResults();
+}
+
+/**
+ * 显示组合贷款计算结果
+ */
+function displayCombinedLoanResults() {
+    // 显示公积金贷款摘要
+    displayProvidentFundSummary();
+    
+    // 显示商业贷款摘要
+    displayCommercialLoanSummary();
+    
+    // 显示组合贷款总摘要
+    displayCombinedLoanSummary();
+    
+    // 显示组合贷款还款计划表
+    displayCombinedSchedule();
+    
+    // 显示组合贷款图表
+    displayCombinedLoanChart();
+}
+
+/**
+ * 显示公积金贷款摘要
+ */
+function displayProvidentFundSummary() {
+    const summary = combinedCalculator.getProvidentFundSummary();
+    const container = document.getElementById('pfLoanSummary');
+    
+    if (combinedCalculator.pfAmount === 0) {
+        container.innerHTML = '<p>未使用公积金贷款</p>';
+        return;
+    }
+    
+    if (combinedCalculator.repaymentMethod === 'equal_installment') {
+        container.innerHTML = `
+            <p>每月月供：<strong>${formatCurrency(summary.monthlyPayment)}</strong></p>
+            <p>贷款总额：${formatCurrency(summary.loanAmount)}</p>
+            <p>支付利息：<span class="text-danger-highlight">${formatCurrency(summary.totalInterest)}</span></p>
+            <p>还款总额：${formatCurrency(summary.totalPayment)}</p>
+            <p>期限：${combinedCalculator.pfTotalMonths}个月(${combinedCalculator.pfTotalMonths / 12}年)</p>
+        `;
+    } else {
+        container.innerHTML = `
+            <p>首月月供：<strong>${formatCurrency(summary.firstMonthPayment)}</strong></p>
+            <p>末月月供：<strong>${formatCurrency(summary.lastMonthPayment)}</strong></p>
+            <p>贷款总额：${formatCurrency(summary.loanAmount)}</p>
+            <p>支付利息：<span class="text-danger-highlight">${formatCurrency(summary.totalInterest)}</span></p>
+            <p>还款总额：${formatCurrency(summary.totalPayment)}</p>
+            <p>期限：${combinedCalculator.pfTotalMonths}个月(${combinedCalculator.pfTotalMonths / 12}年)</p>
+        `;
+    }
+}
+
+/**
+ * 显示商业贷款摘要
+ */
+function displayCommercialLoanSummary() {
+    const summary = combinedCalculator.getCommercialSummary();
+    const container = document.getElementById('commLoanSummary');
+    
+    if (combinedCalculator.commAmount === 0) {
+        container.innerHTML = '<p>未使用商业贷款</p>';
+        return;
+    }
+    
+    if (combinedCalculator.repaymentMethod === 'equal_installment') {
+        container.innerHTML = `
+            <p>每月月供：<strong>${formatCurrency(summary.monthlyPayment)}</strong></p>
+            <p>贷款总额：${formatCurrency(summary.loanAmount)}</p>
+            <p>支付利息：<span class="text-danger-highlight">${formatCurrency(summary.totalInterest)}</span></p>
+            <p>还款总额：${formatCurrency(summary.totalPayment)}</p>
+            <p>期限：${combinedCalculator.commTotalMonths}个月(${combinedCalculator.commTotalMonths / 12}年)</p>
+        `;
+    } else {
+        container.innerHTML = `
+            <p>首月月供：<strong>${formatCurrency(summary.firstMonthPayment)}</strong></p>
+            <p>末月月供：<strong>${formatCurrency(summary.lastMonthPayment)}</strong></p>
+            <p>贷款总额：${formatCurrency(summary.loanAmount)}</p>
+            <p>支付利息：<span class="text-danger-highlight">${formatCurrency(summary.totalInterest)}</span></p>
+            <p>还款总额：${formatCurrency(summary.totalPayment)}</p>
+            <p>期限：${combinedCalculator.commTotalMonths}个月(${combinedCalculator.commTotalMonths / 12}年)</p>
+        `;
+    }
+}
+
+/**
+ * 显示组合贷款总摘要
+ */
+function displayCombinedLoanSummary() {
+    const summary = combinedCalculator.getCombinedSummary();
+    const container = document.getElementById('combinedLoanSummary');
+    
+    container.innerHTML = `
+        <p>首月总月供：<strong>${formatCurrency(summary.firstMonthTotalPayment)}</strong></p>
+        <p>贷款总额：${formatCurrency(summary.totalLoanAmount)}</p>
+        <p>支付总利息：<span class="text-danger-highlight">${formatCurrency(summary.totalInterest)}</span></p>
+        <p>还款总额：${formatCurrency(summary.totalPayment)}</p>
+        <p>最长期限：${combinedCalculator.maxTotalMonths}个月(${combinedCalculator.maxTotalMonths / 12}年)</p>
+    `;
+}
+
+/**
+ * 显示组合贷款还款计划表
+ * @param {boolean} showFull - 是否显示完整计划
+ */
+function displayCombinedSchedule(showFull = false) {
+    const table = document.getElementById('combinedScheduleTable');
+    const tbody = document.getElementById('combinedScheduleBody');
+    const schedule = combinedCalculator.combinedSchedule;
+    
+    // 清空表格
+    tbody.innerHTML = '';
+    
+    // 决定显示哪些月份
+    let displayMonths = [];
+    
+    if (showFull) {
+        // 显示所有月份
+        displayMonths = schedule;
+    } else {
+        // 只显示关键月份（第1年每月，之后每年第1个月，以及贷款转折点）
+        const totalMonths = schedule.length;
+        const pfTotalMonths = combinedCalculator.pfTotalMonths;
+        const commTotalMonths = combinedCalculator.commTotalMonths;
+        
+        displayMonths = schedule.filter(item => {
+            // 第1年每月
+            if (item.month <= 12) return true;
+            
+            // 之后每年第1个月
+            if (item.month % 12 === 1) return true;
+            
+            // 公积金贷款结束月
+            if (item.month === pfTotalMonths) return true;
+            
+            // 商业贷款结束月
+            if (item.month === commTotalMonths) return true;
+            
+            // 最后一个月
+            if (item.month === totalMonths) return true;
+            
+            return false;
+        });
+    }
+    
+    // 填充表格
+    displayMonths.forEach(item => {
+        const row = document.createElement('tr');
+        
+        if (item.month === combinedCalculator.pfTotalMonths && item.month !== combinedCalculator.maxTotalMonths) {
+            row.classList.add('table-warning'); // 公积金贷款结束月份高亮
+        }
+        
+        if (item.month === combinedCalculator.commTotalMonths && item.month !== combinedCalculator.maxTotalMonths) {
+            row.classList.add('table-info'); // 商业贷款结束月份高亮
+        }
+        
+        row.innerHTML = `
+            <td>${item.month}</td>
+            <td>${formatCurrency(item.pfPayment)}</td>
+            <td>${formatCurrency(item.pfPrincipal)}</td>
+            <td>${formatCurrency(item.pfInterest)}</td>
+            <td>${formatCurrency(item.pfRemainingPrincipal)}</td>
+            <td>${formatCurrency(item.commPayment)}</td>
+            <td>${formatCurrency(item.commPrincipal)}</td>
+            <td>${formatCurrency(item.commInterest)}</td>
+            <td>${formatCurrency(item.commRemainingPrincipal)}</td>
+            <td><strong>${formatCurrency(item.totalPayment)}</strong></td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+}
+
+/**
+ * 切换是否显示完整的组合贷款还款计划
+ */
+function toggleFullCombinedSchedule() {
+    if (!combinedCalculator) return;
+    
+    const showFull = showFullCombinedScheduleCheckbox.checked;
+    displayCombinedSchedule(showFull);
+}
+
+/**
+ * 显示组合贷款图表
+ */
+function displayCombinedLoanChart() {
+    const ctx = document.getElementById('combinedLoanChart').getContext('2d');
+    
+    // 如果已经有图表，则销毁
+    if (combinedLoanChart) {
+        combinedLoanChart.destroy();
+    }
+    
+    // 准备数据
+    const pfSummary = combinedCalculator.getProvidentFundSummary();
+    const commSummary = combinedCalculator.getCommercialSummary();
+    
+    // 创建图表
+    combinedLoanChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['贷款金额', '支付利息', '还款总额'],
+            datasets: [
+                {
+                    label: '公积金贷款',
+                    data: [
+                        pfSummary.loanAmount / 10000, 
+                        pfSummary.totalInterest / 10000, 
+                        pfSummary.totalPayment / 10000
+                    ],
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: '商业贷款',
+                    data: [
+                        commSummary.loanAmount / 10000, 
+                        commSummary.totalInterest / 10000, 
+                        commSummary.totalPayment / 10000
+                    ],
+                    backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '组合贷款对比 (万元)',
+                    font: {
+                        size: 16
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '万元';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: '金额 (万元)'
+                    }
+                }
+            }
+        }
+    });
+    
+    // 如果组合贷款期限不同，显示月供变化图表
+    if (combinedCalculator.pfTotalMonths !== combinedCalculator.commTotalMonths) {
+        displayMonthlyPaymentChangeChart();
+    }
+}
+
+/**
+ * 显示月供变化图表
+ * 当公积金贷款和商业贷款期限不同时，展示月供如何随时间变化
+ */
+function displayMonthlyPaymentChangeChart() {
+    // 可以在这里添加一个新图表来展示月供随时间的变化
+    // 这个功能可以根据需要进一步实现
 } 
