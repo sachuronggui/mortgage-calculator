@@ -15,215 +15,453 @@
             <p class="lead">为您提供清晰、便捷的房贷计算与提前还款规划工具</p>
         </header>
 
-        <div class="row">
-            <!-- 左侧输入表单 -->
-            <div class="col-lg-4">
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-primary text-white">
-                        <h4 class="mb-0">贷款基本信息</h4>
-                    </div>
-                    <div class="card-body">
-                        <form id="loanForm">
-                            <div class="mb-3">
-                                <label for="propertyPrice" class="form-label">房屋总价 (万元)</label>
-                                <input type="number" class="form-control" id="propertyPrice" min="0" step="1" required>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="downPayment" class="form-label">首付金额 (万元)</label>
-                                <input type="number" class="form-control" id="downPayment" min="0" step="0.1" required>
-                            </div>
+        <!-- 贷款类型选择标签页 -->
+        <ul class="nav nav-tabs mb-4" id="loanTypeTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="single-loan-tab" data-bs-toggle="tab" data-bs-target="#single-loan" type="button" role="tab" aria-controls="single-loan" aria-selected="true">单一贷款</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="combined-loan-tab" data-bs-toggle="tab" data-bs-target="#combined-loan" type="button" role="tab" aria-controls="combined-loan" aria-selected="false">组合贷款</button>
+            </li>
+        </ul>
 
-                            <div class="mb-3">
-                                <label for="loanAmount" class="form-label">贷款金额 (万元)</label>
-                                <input type="number" class="form-control" id="loanAmount" readonly>
+        <!-- 标签页内容 -->
+        <div class="tab-content" id="loanTypeTabsContent">
+            <!-- 单一贷款标签页 -->
+            <div class="tab-pane fade show active" id="single-loan" role="tabpanel" aria-labelledby="single-loan-tab">
+                <div class="row">
+                    <!-- 左侧输入表单 -->
+                    <div class="col-lg-4">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h4 class="mb-0">贷款基本信息</h4>
                             </div>
-                            
-                            <div class="mb-3">
-                                <label for="interestRate" class="form-label">贷款年利率 (%)</label>
-                                <input type="number" class="form-control" id="interestRate" min="0" max="20" step="0.01" required>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="loanTerm" class="form-label">贷款期限 (年)</label>
-                                <select class="form-select" id="loanTerm" required>
-                                    <option value="1">1年</option>
-                                    <option value="5">5年</option>
-                                    <option value="10">10年</option>
-                                    <option value="15">15年</option>
-                                    <option value="20">20年</option>
-                                    <option value="25">25年</option>
-                                    <option value="30" selected>30年</option>
-                                </select>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label class="form-label">还款方式</label>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="paymentType" id="equal-installment" value="equal-installment" checked>
-                                    <label class="form-check-label" for="equal-installment">
-                                        等额本息
-                                    </label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="paymentType" id="equal-principal" value="equal-principal">
-                                    <label class="form-check-label" for="equal-principal">
-                                        等额本金
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <button type="submit" class="btn btn-primary w-100">计算月供</button>
-                        </form>
-                    </div>
-                </div>
+                            <div class="card-body">
+                                <form id="loanForm">
+                                    <div class="mb-3">
+                                        <label for="propertyPrice" class="form-label">房屋总价 (万元)</label>
+                                        <input type="number" class="form-control" id="propertyPrice" min="0" step="1" required>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="downPayment" class="form-label">首付金额 (万元)</label>
+                                        <input type="number" class="form-control" id="downPayment" min="0" step="0.1" required>
+                                    </div>
 
-                <!-- 提前还款设置 -->
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-success text-white">
-                        <h4 class="mb-0">提前还款规划</h4>
+                                    <div class="mb-3">
+                                        <label for="loanAmount" class="form-label">贷款金额 (万元)</label>
+                                        <input type="number" class="form-control" id="loanAmount" readonly>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="interestRate" class="form-label">贷款年利率 (%)</label>
+                                        <input type="number" class="form-control" id="interestRate" min="0" max="20" step="0.01" required>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="loanTerm" class="form-label">贷款期限 (年)</label>
+                                        <select class="form-select" id="loanTerm" required>
+                                            <option value="1">1年</option>
+                                            <option value="5">5年</option>
+                                            <option value="10">10年</option>
+                                            <option value="15">15年</option>
+                                            <option value="20">20年</option>
+                                            <option value="25">25年</option>
+                                            <option value="30" selected>30年</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">还款方式</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="paymentType" id="equal-installment" value="equal-installment" checked>
+                                            <label class="form-check-label" for="equal-installment">
+                                                等额本息
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="paymentType" id="equal-principal" value="equal-principal">
+                                            <label class="form-check-label" for="equal-principal">
+                                                等额本金
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-primary w-100">计算月供</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- 提前还款设置 -->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-success text-white">
+                                <h4 class="mb-0">提前还款规划</h4>
+                            </div>
+                            <div class="card-body">
+                                <form id="prepaymentForm">
+                                    <div class="mb-3">
+                                        <label for="prepaymentMonth" class="form-label">提前还款时间 (第几个月)</label>
+                                        <input type="number" class="form-control" id="prepaymentMonth" min="1" step="1">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="prepaymentAmount" class="form-label">提前还款金额 (万元)</label>
+                                        <input type="number" class="form-control" id="prepaymentAmount" min="0" step="0.1">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">提前还款方式</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="prepaymentType" id="reduce-term" value="reduce-term" checked>
+                                            <label class="form-check-label" for="reduce-term">
+                                                缩短还款期限 (月供基本不变)
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="prepaymentType" id="reduce-payment" value="reduce-payment">
+                                            <label class="form-check-label" for="reduce-payment">
+                                                减少月供金额 (期限不变)
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="d-grid gap-2">
+                                        <button type="submit" class="btn btn-success">添加提前还款</button>
+                                        <button type="button" id="clearPrepayments" class="btn btn-outline-danger">清除所有提前还款</button>
+                                    </div>
+                                </form>
+                                
+                                <!-- 提前还款历史记录 -->
+                                <div class="mt-4">
+                                    <h5>提前还款历史记录</h5>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered" id="prepaymentHistoryTable">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>序号</th>
+                                                    <th>还款时间</th>
+                                                    <th>还款金额</th>
+                                                    <th>还款方式</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="prepaymentHistoryBody">
+                                                <tr>
+                                                    <td colspan="4" class="text-center">暂无提前还款记录</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <form id="prepaymentForm">
-                            <div class="mb-3">
-                                <label for="prepaymentMonth" class="form-label">提前还款时间 (第几个月)</label>
-                                <input type="number" class="form-control" id="prepaymentMonth" min="1" step="1">
+                    
+                    <!-- 右侧结果显示 -->
+                    <div class="col-lg-8">
+                        <!-- 基本还款信息 -->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h4 class="mb-0">还款计划摘要</h4>
                             </div>
-                            
-                            <div class="mb-3">
-                                <label for="prepaymentAmount" class="form-label">提前还款金额 (万元)</label>
-                                <input type="number" class="form-control" id="prepaymentAmount" min="0" step="0.1">
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label class="form-label">提前还款方式</label>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="prepaymentType" id="reduce-term" value="reduce-term" checked>
-                                    <label class="form-check-label" for="reduce-term">
-                                        缩短还款期限 (月供基本不变)
-                                    </label>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="result-box mb-3">
+                                            <h5>等额本息</h5>
+                                            <div class="results" id="equalInstallmentSummary">
+                                                <p>请先计算</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="result-box mb-3">
+                                            <h5>等额本金</h5>
+                                            <div class="results" id="equalPrincipalSummary">
+                                                <p>请先计算</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="prepaymentType" id="reduce-payment" value="reduce-payment">
-                                    <label class="form-check-label" for="reduce-payment">
-                                        减少月供金额 (期限不变)
-                                    </label>
+                                
+                                <!-- 对比图表 -->
+                                <div class="chart-container mt-4">
+                                    <canvas id="comparisonChart"></canvas>
                                 </div>
                             </div>
-                            
-                            <button type="submit" class="btn btn-success w-100">计算提前还款方案</button>
-                        </form>
+                        </div>
+                        
+                        <!-- 提前还款分析结果 -->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-success text-white">
+                                <h4 class="mb-0">提前还款分析</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="result-box mb-3">
+                                            <h5>缩短期限</h5>
+                                            <div class="results" id="reducedTermResults">
+                                                <p>请先设置提前还款方案</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="result-box mb-3">
+                                            <h5>减少月供</h5>
+                                            <div class="results" id="reducedPaymentResults">
+                                                <p>请先设置提前还款方案</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 原有提前还款对比图表 -->
+                                <div class="chart-container mt-4">
+                                    <canvas id="prepaymentComparisonChart"></canvas>
+                                </div>
+                                
+                                <!-- 新增月供变化对比图表 -->
+                                <div class="mt-5">
+                                    <h5 class="text-center mb-3">提前还款前后月供对比</h5>
+                                    <div class="d-flex justify-content-end mb-2">
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" class="btn btn-outline-primary active" id="showLineChartBtn">折线图</button>
+                                            <button type="button" class="btn btn-outline-primary" id="showBarChartBtn">柱状图</button>
+                                        </div>
+                                    </div>
+                                    <div class="chart-container" style="height: 400px;">
+                                        <canvas id="monthlyPaymentComparisonChart"></canvas>
+                                    </div>
+                                    <div class="small text-muted text-center mt-2">
+                                        <span class="badge bg-primary me-1">蓝色</span>原始月供
+                                        <span class="badge bg-success ms-3 me-1">绿色</span>当前月供
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 详细还款计划表格 -->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                                <h4 class="mb-0">还款计划明细</h4>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="showFullPaymentSchedule">
+                                    <label class="form-check-label text-white" for="showFullPaymentSchedule">显示完整计划</label>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover" id="paymentScheduleTable">
+                                        <thead>
+                                            <tr>
+                                                <th>期数</th>
+                                                <th>月供</th>
+                                                <th>本金</th>
+                                                <th>利息</th>
+                                                <th>剩余本金</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="paymentScheduleBody">
+                                            <tr>
+                                                <td colspan="5" class="text-center">请先计算</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            
-            <!-- 右侧结果显示 -->
-            <div class="col-lg-8">
-                <!-- 基本还款信息 -->
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-primary text-white">
-                        <h4 class="mb-0">还款计划摘要</h4>
+
+            <!-- 组合贷款标签页 -->
+            <div class="tab-pane fade" id="combined-loan" role="tabpanel" aria-labelledby="combined-loan-tab">
+                <div class="row">
+                    <!-- 左侧输入表单 -->
+                    <div class="col-lg-4">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h4 class="mb-0">公积金贷款信息</h4>
+                            </div>
+                            <div class="card-body">
+                                <form id="combinedLoanForm">
+                                    <div class="mb-3">
+                                        <label for="pfAmount" class="form-label">公积金贷款金额 (万元)</label>
+                                        <input type="number" class="form-control" id="pfAmount" min="0" step="1" required>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="pfRate" class="form-label">公积金年利率 (%)</label>
+                                        <input type="number" class="form-control" id="pfRate" min="0" max="20" step="0.01" value="3.1" required>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="pfTerm" class="form-label">公积金贷款期限 (年)</label>
+                                        <select class="form-select" id="pfTerm" required>
+                                            <option value="1">1年</option>
+                                            <option value="5">5年</option>
+                                            <option value="10">10年</option>
+                                            <option value="15">15年</option>
+                                            <option value="20" selected>20年</option>
+                                            <option value="25">25年</option>
+                                            <option value="30">30年</option>
+                                        </select>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-info text-white">
+                                <h4 class="mb-0">商业贷款信息</h4>
+                            </div>
+                            <div class="card-body">
+                                <form id="commercialLoanForm">
+                                    <div class="mb-3">
+                                        <label for="commAmount" class="form-label">商业贷款金额 (万元)</label>
+                                        <input type="number" class="form-control" id="commAmount" min="0" step="1" required>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="commRate" class="form-label">商业贷款年利率 (%)</label>
+                                        <input type="number" class="form-control" id="commRate" min="0" max="20" step="0.01" value="4.8" required>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="commTerm" class="form-label">商业贷款期限 (年)</label>
+                                        <select class="form-select" id="commTerm" required>
+                                            <option value="1">1年</option>
+                                            <option value="5">5年</option>
+                                            <option value="10">10年</option>
+                                            <option value="15">15年</option>
+                                            <option value="20">20年</option>
+                                            <option value="25">25年</option>
+                                            <option value="30" selected>30年</option>
+                                        </select>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-success text-white">
+                                <h4 class="mb-0">还款选项</h4>
+                            </div>
+                            <div class="card-body">
+                                <form id="combinedPaymentForm">
+                                    <div class="mb-3">
+                                        <label class="form-label">还款方式</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="combinedPaymentType" id="combined-equal-installment" value="equal_installment" checked>
+                                            <label class="form-check-label" for="combined-equal-installment">
+                                                等额本息
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="combinedPaymentType" id="combined-equal-principal" value="equal_principal">
+                                            <label class="form-check-label" for="combined-equal-principal">
+                                                等额本金
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <button type="button" id="calculateCombinedBtn" class="btn btn-success w-100">计算组合贷款</button>
+                                </form>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="result-box mb-3">
-                                    <h5>等额本息</h5>
-                                    <div class="results" id="equalInstallmentSummary">
-                                        <p>请先计算</p>
+                    
+                    <!-- 右侧结果显示 -->
+                    <div class="col-lg-8">
+                        <!-- 组合贷款结果 -->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h4 class="mb-0">组合贷款计算结果</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="result-box mb-3">
+                                            <h5>公积金贷款</h5>
+                                            <div class="results" id="pfLoanSummary">
+                                                <p>请先计算</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="result-box mb-3">
+                                            <h5>商业贷款</h5>
+                                            <div class="results" id="commLoanSummary">
+                                                <p>请先计算</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="result-box mb-3 bg-light border border-primary">
+                                            <h5 class="text-primary">组合贷款总计</h5>
+                                            <div class="results" id="combinedLoanSummary">
+                                                <p>请先计算</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="result-box mb-3">
-                                    <h5>等额本金</h5>
-                                    <div class="results" id="equalPrincipalSummary">
-                                        <p>请先计算</p>
-                                    </div>
+                                
+                                <!-- 组合贷款图表 -->
+                                <div class="chart-container mt-4">
+                                    <canvas id="combinedLoanChart"></canvas>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- 对比图表 -->
-                        <div class="chart-container mt-4">
-                            <canvas id="comparisonChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 提前还款分析结果 -->
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-success text-white">
-                        <h4 class="mb-0">提前还款分析</h4>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="result-box mb-3">
-                                    <h5>缩短期限</h5>
-                                    <div class="results" id="reducedTermResults">
-                                        <p>请先设置提前还款方案</p>
-                                    </div>
+                        <!-- 详细还款计划表格 -->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                                <h4 class="mb-0">组合贷款还款计划明细</h4>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="showFullCombinedSchedule">
+                                    <label class="form-check-label text-white" for="showFullCombinedSchedule">显示完整计划</label>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="result-box mb-3">
-                                    <h5>减少月供</h5>
-                                    <div class="results" id="reducedPaymentResults">
-                                        <p>请先设置提前还款方案</p>
-                                    </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover" id="combinedScheduleTable">
+                                        <thead>
+                                            <tr>
+                                                <th>期数</th>
+                                                <th>公积金月供</th>
+                                                <th>公积金本金</th>
+                                                <th>公积金利息</th>
+                                                <th>公积金剩余本金</th>
+                                                <th>商贷月供</th>
+                                                <th>商贷本金</th>
+                                                <th>商贷利息</th>
+                                                <th>商贷剩余本金</th>
+                                                <th>总月供</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="combinedScheduleBody">
+                                            <tr>
+                                                <td colspan="10" class="text-center">请先计算</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <!-- 提前还款对比图表 -->
-                        <div class="chart-container mt-4">
-                            <canvas id="prepaymentComparisonChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 详细还款计划表格 -->
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">还款计划明细</h4>
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="showFullPaymentSchedule">
-                            <label class="form-check-label text-white" for="showFullPaymentSchedule">显示完整计划</label>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover" id="paymentScheduleTable">
-                                <thead>
-                                    <tr>
-                                        <th>期数</th>
-                                        <th>月供金额</th>
-                                        <th>本金</th>
-                                        <th>利息</th>
-                                        <th>剩余本金</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td colspan="5" class="text-center">请先计算还款计划</td>
-                                    </tr>
-                                </tbody>
-                            </table>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <footer class="mt-4 text-center text-muted">
-            <p>智能房贷计算与规划器 &copy; 2024</p>
+
+        <footer class="mt-5 mb-4 text-center text-muted">
+            <p>智能房贷计算与规划器 &copy; 2023 版权所有</p>
         </footer>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.0.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="js/calculator.js"></script>
+    <script src="js/combinedLoanCalculator.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html> 

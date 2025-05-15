@@ -12,10 +12,19 @@ class MortgageCalculator {
         this.loanAmount = loanAmount * 10000; // 转换为元
         this.monthlyRate = interestRate / 100 / 12; // 月利率
         this.totalMonths = loanTerm * 12; // 总期数
+        this.originalLoanAmount = this.loanAmount; // 保存原始贷款金额
+        this.originalTotalMonths = this.totalMonths; // 保存原始总期数
+        
+        // 多次提前还款记录
+        this.prepaymentHistory = [];
         
         // 计算还款计划
         this.equalInstallmentSchedule = this.calculateEqualInstallmentSchedule();
         this.equalPrincipalSchedule = this.calculateEqualPrincipalSchedule();
+        
+        // 保存原始还款计划
+        this.originalEqualInstallmentSchedule = [...this.equalInstallmentSchedule];
+        this.originalEqualPrincipalSchedule = [...this.equalPrincipalSchedule];
     }
     
     /**
@@ -148,8 +157,13 @@ class MortgageCalculator {
     calculateReducedTermPrepayment(prepaymentMonth, prepaymentAmount, paymentType) {
         prepaymentAmount = prepaymentAmount * 10000; // 转换为元
         
-        // 选择合适的还款计划
+        // 选择合适的原始还款计划（使用未经修改的原始计划）
         const originalSchedule = paymentType === 'equal-installment' 
+            ? this.originalEqualInstallmentSchedule 
+            : this.originalEqualPrincipalSchedule;
+            
+        // 选择当前的还款计划（可能包含之前的提前还款）
+        const currentSchedule = paymentType === 'equal-installment' 
             ? this.equalInstallmentSchedule 
             : this.equalPrincipalSchedule;
         
@@ -159,17 +173,28 @@ class MortgageCalculator {
         }
         
         // 获取提前还款前的剩余本金
-        const remainingPrincipalBeforePrepayment = originalSchedule[prepaymentMonth - 1].remainingPrincipal;
+        const remainingPrincipalBeforePrepayment = currentSchedule[prepaymentMonth - 1].remainingPrincipal;
         
         // 如果提前还款金额大于剩余本金，则全部还清
         if (prepaymentAmount >= remainingPrincipalBeforePrepayment) {
+            // 计算原始总利息（使用原始计划）
+            const totalInterestOriginal = this.calculateTotalInterest(originalSchedule);
+            
+            // 计算提前还款前已支付的利息（使用当前计划）
+            const totalInterestBeforePrepayment = this.calculateTotalInterestBeforeMonth(
+                currentSchedule, 
+                prepaymentMonth
+            );
+            
+            // 提前还清贷款节省的是剩余所有利息
+            const interestSaved = totalInterestOriginal - totalInterestBeforePrepayment;
+            
             return {
                 newTotalMonths: prepaymentMonth,
                 monthsReduced: this.totalMonths - prepaymentMonth,
-                totalInterestOriginal: this.calculateTotalInterest(originalSchedule),
-                totalInterestNew: this.calculateTotalInterestBeforeMonth(originalSchedule, prepaymentMonth),
-                interestSaved: this.calculateTotalInterest(originalSchedule) - 
-                               this.calculateTotalInterestBeforeMonth(originalSchedule, prepaymentMonth),
+                totalInterestOriginal: totalInterestOriginal,
+                totalInterestNew: totalInterestBeforePrepayment,
+                interestSaved: interestSaved,
                 fullPayoff: true,
                 originalTotalMonths: this.totalMonths
             };
@@ -181,7 +206,7 @@ class MortgageCalculator {
         // 如果是等额本息
         if (paymentType === 'equal-installment') {
             // 计算新的还款期限
-            const monthlyPayment = originalSchedule[0].payment;
+            const monthlyPayment = currentSchedule[0].payment;
             const newRemainingMonths = Math.ceil(
                 Math.log(monthlyPayment / (monthlyPayment - remainingPrincipalAfterPrepayment * this.monthlyRate)) /
                 Math.log(1 + this.monthlyRate)
@@ -190,16 +215,17 @@ class MortgageCalculator {
             // 计算新的总还款期限
             const newTotalMonths = prepaymentMonth + newRemainingMonths;
             
-            // 计算原始总利息
+            // 计算原始总利息（使用原始计划）
             const totalInterestOriginal = this.calculateTotalInterest(originalSchedule);
             
             // 计算新的总利息
             const totalInterestBeforePrepayment = this.calculateTotalInterestBeforeMonth(
-                originalSchedule, 
+                currentSchedule, 
                 prepaymentMonth
             );
             
-            const totalInterestAfterPrepayment = monthlyPayment * newRemainingMonths - remainingPrincipalAfterPrepayment;
+            // 计算还款后剩余期数的利息总额
+            const totalInterestAfterPrepayment = (monthlyPayment * newRemainingMonths) - remainingPrincipalAfterPrepayment;
             
             const totalInterestNew = totalInterestBeforePrepayment + totalInterestAfterPrepayment;
             
@@ -219,7 +245,7 @@ class MortgageCalculator {
         // 如果是等额本金
         else {
             // 计算每月本金
-            const monthlyPrincipal = originalSchedule[0].principal;
+            const monthlyPrincipal = currentSchedule[0].principal;
             
             // 提前还款相当于多少个月的本金
             const principalMonthsReduced = Math.floor(prepaymentAmount / monthlyPrincipal);
@@ -227,13 +253,14 @@ class MortgageCalculator {
             // 计算新的总还款期限
             const newTotalMonths = this.totalMonths - principalMonthsReduced;
             
-            // 计算原始总利息
+            // 计算原始总利息（使用原始计划）
             const totalInterestOriginal = this.calculateTotalInterest(originalSchedule);
             
             // 创建新的还款计划计算总利息
             const newSchedule = [];
             let newRemainingPrincipal = remainingPrincipalAfterPrepayment;
             
+            // 重新计算从提前还款月开始的还款计划
             for (let month = prepaymentMonth; month < newTotalMonths; month++) {
                 const interest = newRemainingPrincipal * this.monthlyRate;
                 newRemainingPrincipal -= monthlyPrincipal;
@@ -248,7 +275,7 @@ class MortgageCalculator {
             
             // 计算新的总利息
             const totalInterestBeforePrepayment = this.calculateTotalInterestBeforeMonth(
-                originalSchedule, 
+                currentSchedule, 
                 prepaymentMonth
             );
             
@@ -281,8 +308,13 @@ class MortgageCalculator {
     calculateReducedPaymentPrepayment(prepaymentMonth, prepaymentAmount, paymentType) {
         prepaymentAmount = prepaymentAmount * 10000; // 转换为元
         
-        // 选择合适的还款计划
+        // 选择合适的原始还款计划（使用未经修改的原始计划）
         const originalSchedule = paymentType === 'equal-installment' 
+            ? this.originalEqualInstallmentSchedule 
+            : this.originalEqualPrincipalSchedule;
+            
+        // 选择当前的还款计划（可能包含之前的提前还款）
+        const currentSchedule = paymentType === 'equal-installment' 
             ? this.equalInstallmentSchedule 
             : this.equalPrincipalSchedule;
         
@@ -292,19 +324,30 @@ class MortgageCalculator {
         }
         
         // 获取提前还款前的剩余本金
-        const remainingPrincipalBeforePrepayment = originalSchedule[prepaymentMonth - 1].remainingPrincipal;
+        const remainingPrincipalBeforePrepayment = currentSchedule[prepaymentMonth - 1].remainingPrincipal;
         
         // 如果提前还款金额大于剩余本金，则全部还清
         if (prepaymentAmount >= remainingPrincipalBeforePrepayment) {
+            // 计算原始总利息（使用原始计划）
+            const totalInterestOriginal = this.calculateTotalInterest(originalSchedule);
+            
+            // 计算提前还款前已支付的利息（使用当前计划）
+            const totalInterestBeforePrepayment = this.calculateTotalInterestBeforeMonth(
+                currentSchedule, 
+                prepaymentMonth
+            );
+            
+            // 提前还清贷款节省的是剩余所有利息
+            const interestSaved = totalInterestOriginal - totalInterestBeforePrepayment;
+            
             return {
                 fullPayoff: true,
                 originalMonthlyPayment: originalSchedule[0].payment,
                 newMonthlyPayment: 0,
                 paymentReduction: originalSchedule[0].payment,
-                totalInterestOriginal: this.calculateTotalInterest(originalSchedule),
-                totalInterestNew: this.calculateTotalInterestBeforeMonth(originalSchedule, prepaymentMonth),
-                interestSaved: this.calculateTotalInterest(originalSchedule) - 
-                               this.calculateTotalInterestBeforeMonth(originalSchedule, prepaymentMonth)
+                totalInterestOriginal: totalInterestOriginal,
+                totalInterestNew: totalInterestBeforePrepayment,
+                interestSaved: interestSaved
             };
         }
         
@@ -336,7 +379,8 @@ class MortgageCalculator {
                 prepaymentMonth
             );
             
-            const totalInterestAfterPrepayment = newMonthlyPayment * remainingMonths - remainingPrincipalAfterPrepayment;
+            // 计算剩余期限的新利息总额
+            const totalInterestAfterPrepayment = (newMonthlyPayment * remainingMonths) - remainingPrincipalAfterPrepayment;
             
             const totalInterestNew = totalInterestBeforePrepayment + totalInterestAfterPrepayment;
             
@@ -371,10 +415,17 @@ class MortgageCalculator {
             // 计算原始总利息
             const totalInterestOriginal = this.calculateTotalInterest(originalSchedule);
             
+            // 计算提前还款前已支付的利息
+            const totalInterestBeforePrepayment = this.calculateTotalInterestBeforeMonth(
+                originalSchedule, 
+                prepaymentMonth
+            );
+            
             // 创建新的还款计划计算总利息
             const newSchedule = [];
             let newRemainingPrincipal = remainingPrincipalAfterPrepayment;
             
+            // 计算剩余期限的新还款计划
             for (let month = 0; month < remainingMonths; month++) {
                 const interest = newRemainingPrincipal * this.monthlyRate;
                 newRemainingPrincipal -= newMonthlyPrincipal;
@@ -387,12 +438,7 @@ class MortgageCalculator {
                 });
             }
             
-            // 计算新的总利息
-            const totalInterestBeforePrepayment = this.calculateTotalInterestBeforeMonth(
-                originalSchedule, 
-                prepaymentMonth
-            );
-            
+            // 计算剩余期限的新利息总额
             const totalInterestAfterPrepayment = newSchedule.reduce((sum, item) => sum + item.interest, 0);
             
             const totalInterestNew = totalInterestBeforePrepayment + totalInterestAfterPrepayment;
@@ -444,6 +490,380 @@ class MortgageCalculator {
      */
     calculateTotalInterestBeforeMonth(schedule, month) {
         return schedule.slice(0, month).reduce((sum, item) => sum + item.interest, 0);
+    }
+    
+    /**
+     * 添加提前还款记录并重新计算还款计划
+     * @param {number} prepaymentMonth - 提前还款月份
+     * @param {number} prepaymentAmount - 提前还款金额(万元)
+     * @param {string} prepaymentType - 提前还款方式 ('reduce-term' 或 'reduce-payment')
+     * @param {string} paymentType - 还款方式 ('equal-installment' 或 'equal-principal')
+     * @returns {boolean} 是否添加成功
+     */
+    addPrepayment(prepaymentMonth, prepaymentAmount, prepaymentType, paymentType) {
+        prepaymentAmount = prepaymentAmount * 10000; // 转换为元
+        
+        // 选择合适的还款计划
+        const currentSchedule = paymentType === 'equal-installment' 
+            ? this.equalInstallmentSchedule 
+            : this.equalPrincipalSchedule;
+        
+        // 验证提前还款月份是否有效
+        if (prepaymentMonth <= 0 || prepaymentMonth > currentSchedule.length) {
+            return false;
+        }
+        
+        // 验证提前还款金额是否有效
+        if (prepaymentAmount <= 0 || prepaymentAmount > currentSchedule[prepaymentMonth - 1].remainingPrincipal) {
+            return false;
+        }
+        
+        // 添加到提前还款记录
+        this.prepaymentHistory.push({
+            month: prepaymentMonth,
+            amount: prepaymentAmount,
+            type: prepaymentType,
+            paymentType: paymentType,
+            date: new Date()
+        });
+        
+        // 重新计算还款计划
+        this.recalculateSchedulesWithPrepayments();
+        
+        return true;
+    }
+    
+    /**
+     * 重新计算考虑所有提前还款的还款计划
+     */
+    recalculateSchedulesWithPrepayments() {
+        // 按提前还款月份排序（升序）
+        this.prepaymentHistory.sort((a, b) => a.month - b.month);
+        
+        // 重置还款计划为原始计划
+        this.equalInstallmentSchedule = [...this.originalEqualInstallmentSchedule];
+        this.equalPrincipalSchedule = [...this.originalEqualPrincipalSchedule];
+        
+        // 遍历所有提前还款记录，依次应用
+        for (let i = 0; i < this.prepaymentHistory.length; i++) {
+            const prepayment = this.prepaymentHistory[i];
+            
+            // 应用提前还款
+            if (prepayment.type === 'reduce-term') {
+                this.applyReduceTermPrepayment(i, prepayment);
+            } else {
+                this.applyReducePaymentPrepayment(i, prepayment);
+            }
+        }
+    }
+    
+    /**
+     * 应用一次缩短还款期限的提前还款
+     * @param {number} index - 提前还款记录的索引
+     * @param {Object} prepayment - 提前还款记录
+     */
+    applyReduceTermPrepayment(index, prepayment) {
+        const paymentType = prepayment.paymentType;
+        const prepaymentMonth = prepayment.month;
+        const prepaymentAmount = prepayment.amount;
+        
+        // 选择合适的还款计划
+        let schedule = paymentType === 'equal-installment' 
+            ? this.equalInstallmentSchedule 
+            : this.equalPrincipalSchedule;
+        
+        // 如果提前还款月份超过当前计划长度，不执行
+        if (prepaymentMonth > schedule.length) {
+            return;
+        }
+        
+        // 获取提前还款前的剩余本金
+        const remainingPrincipalBeforePrepayment = schedule[prepaymentMonth - 1].remainingPrincipal;
+        
+        // 如果提前还款金额大于剩余本金，则全部还清
+        if (prepaymentAmount >= remainingPrincipalBeforePrepayment) {
+            // 截断还款计划
+            schedule = schedule.slice(0, prepaymentMonth);
+            
+            // 更新最后一个月的数据
+            schedule[prepaymentMonth - 1].remainingPrincipal = 0;
+            
+            // 设置更新后的还款计划
+            if (paymentType === 'equal-installment') {
+                this.equalInstallmentSchedule = schedule;
+            } else {
+                this.equalPrincipalSchedule = schedule;
+            }
+            return;
+        }
+        
+        // 计算提前还款后的剩余本金
+        const remainingPrincipalAfterPrepayment = remainingPrincipalBeforePrepayment - prepaymentAmount;
+        
+        // 如果是等额本息
+        if (paymentType === 'equal-installment') {
+            // 计算新的还款期限
+            const monthlyPayment = schedule[0].payment;
+            const newRemainingMonths = Math.ceil(
+                Math.log(monthlyPayment / (monthlyPayment - remainingPrincipalAfterPrepayment * this.monthlyRate)) /
+                Math.log(1 + this.monthlyRate)
+            );
+            
+            // 创建新的还款计划
+            const newSchedule = schedule.slice(0, prepaymentMonth);
+            let newRemainingPrincipal = remainingPrincipalAfterPrepayment;
+            
+            for (let month = 1; month <= newRemainingMonths; month++) {
+                const interest = newRemainingPrincipal * this.monthlyRate;
+                const principal = monthlyPayment - interest;
+                newRemainingPrincipal -= principal;
+                
+                newSchedule.push({
+                    month: prepaymentMonth + month,
+                    payment: monthlyPayment,
+                    principal: principal,
+                    interest: interest,
+                    remainingPrincipal: newRemainingPrincipal > 0 ? newRemainingPrincipal : 0
+                });
+                
+                // 如果剩余本金减为0或负数，则结束
+                if (newRemainingPrincipal <= 0) {
+                    break;
+                }
+            }
+            
+            // 更新还款计划
+            this.equalInstallmentSchedule = newSchedule;
+        } 
+        // 如果是等额本金
+        else {
+            // 计算每月本金
+            const monthlyPrincipal = schedule[0].principal;
+            
+            // 提前还款相当于多少个月的本金
+            const principalMonthsReduced = Math.floor(prepaymentAmount / monthlyPrincipal);
+            const extraPrepayment = prepaymentAmount - (principalMonthsReduced * monthlyPrincipal);
+            
+            // 创建新的还款计划
+            const newSchedule = schedule.slice(0, prepaymentMonth);
+            let newRemainingPrincipal = remainingPrincipalAfterPrepayment;
+            
+            // 计算新的结束期数
+            const newRemainingMonths = Math.ceil(newRemainingPrincipal / monthlyPrincipal);
+            
+            for (let month = 1; month <= newRemainingMonths; month++) {
+                const interest = newRemainingPrincipal * this.monthlyRate;
+                const principal = Math.min(monthlyPrincipal, newRemainingPrincipal);
+                const payment = principal + interest;
+                
+                newRemainingPrincipal -= principal;
+                
+                newSchedule.push({
+                    month: prepaymentMonth + month,
+                    payment: payment,
+                    principal: principal,
+                    interest: interest,
+                    remainingPrincipal: newRemainingPrincipal > 0 ? newRemainingPrincipal : 0
+                });
+                
+                // 如果剩余本金减为0或负数，则结束
+                if (newRemainingPrincipal <= 0) {
+                    break;
+                }
+            }
+            
+            // 更新还款计划
+            this.equalPrincipalSchedule = newSchedule;
+        }
+    }
+    
+    /**
+     * 应用一次减少月供的提前还款
+     * @param {number} index - 提前还款记录的索引
+     * @param {Object} prepayment - 提前还款记录
+     */
+    applyReducePaymentPrepayment(index, prepayment) {
+        const paymentType = prepayment.paymentType;
+        const prepaymentMonth = prepayment.month;
+        const prepaymentAmount = prepayment.amount;
+        
+        // 选择合适的还款计划
+        let schedule = paymentType === 'equal-installment' 
+            ? this.equalInstallmentSchedule 
+            : this.equalPrincipalSchedule;
+        
+        // 如果提前还款月份超过当前计划长度，不执行
+        if (prepaymentMonth > schedule.length) {
+            return;
+        }
+        
+        // 获取提前还款前的剩余本金
+        const remainingPrincipalBeforePrepayment = schedule[prepaymentMonth - 1].remainingPrincipal;
+        
+        // 如果提前还款金额大于剩余本金，则全部还清
+        if (prepaymentAmount >= remainingPrincipalBeforePrepayment) {
+            // 截断还款计划
+            schedule = schedule.slice(0, prepaymentMonth);
+            
+            // 更新最后一个月的数据
+            schedule[prepaymentMonth - 1].remainingPrincipal = 0;
+            
+            // 设置更新后的还款计划
+            if (paymentType === 'equal-installment') {
+                this.equalInstallmentSchedule = schedule;
+            } else {
+                this.equalPrincipalSchedule = schedule;
+            }
+            return;
+        }
+        
+        // 计算提前还款后的剩余本金
+        const remainingPrincipalAfterPrepayment = remainingPrincipalBeforePrepayment - prepaymentAmount;
+        
+        // 保留原计划前半部分
+        const newSchedule = schedule.slice(0, prepaymentMonth);
+        
+        // 剩余月数
+        const remainingMonths = this.originalTotalMonths - prepaymentMonth;
+        
+        // 如果是等额本息
+        if (paymentType === 'equal-installment') {
+            // 计算新的月供
+            const newMonthlyPayment = this.calculateMonthlyPaymentForAmount(
+                remainingPrincipalAfterPrepayment, 
+                this.monthlyRate, 
+                remainingMonths
+            );
+            
+            // 创建新的还款计划
+            let newRemainingPrincipal = remainingPrincipalAfterPrepayment;
+            
+            for (let month = 0; month < remainingMonths; month++) {
+                const interest = newRemainingPrincipal * this.monthlyRate;
+                const principal = newMonthlyPayment - interest;
+                newRemainingPrincipal -= principal;
+                
+                newSchedule.push({
+                    month: prepaymentMonth + month + 1,
+                    payment: newMonthlyPayment,
+                    principal: principal,
+                    interest: interest,
+                    remainingPrincipal: newRemainingPrincipal > 0 ? newRemainingPrincipal : 0
+                });
+                
+                // 如果剩余本金减为0或负数，则结束
+                if (newRemainingPrincipal <= 0) {
+                    break;
+                }
+            }
+            
+            // 更新还款计划
+            this.equalInstallmentSchedule = newSchedule;
+        } 
+        // 如果是等额本金
+        else {
+            // 计算新的每月本金
+            const newMonthlyPrincipal = remainingPrincipalAfterPrepayment / remainingMonths;
+            
+            // 创建新的还款计划
+            let newRemainingPrincipal = remainingPrincipalAfterPrepayment;
+            
+            for (let month = 0; month < remainingMonths; month++) {
+                const interest = newRemainingPrincipal * this.monthlyRate;
+                const principal = newMonthlyPrincipal;
+                const payment = principal + interest;
+                
+                newRemainingPrincipal -= principal;
+                
+                newSchedule.push({
+                    month: prepaymentMonth + month + 1,
+                    payment: payment,
+                    principal: principal,
+                    interest: interest,
+                    remainingPrincipal: newRemainingPrincipal > 0 ? newRemainingPrincipal : 0
+                });
+                
+                // 如果剩余本金减为0或负数，则结束
+                if (newRemainingPrincipal <= 0) {
+                    break;
+                }
+            }
+            
+            // 更新还款计划
+            this.equalPrincipalSchedule = newSchedule;
+        }
+    }
+    
+    /**
+     * 清除所有提前还款记录并恢复原始还款计划
+     */
+    clearPrepayments() {
+        this.prepaymentHistory = [];
+        this.equalInstallmentSchedule = [...this.originalEqualInstallmentSchedule];
+        this.equalPrincipalSchedule = [...this.originalEqualPrincipalSchedule];
+        return true;
+    }
+    
+    /**
+     * 获取多次提前还款后的月供明细数据（用于图表显示）
+     * @param {string} paymentType - 还款方式 ('equal-installment' 或 'equal-principal')
+     * @returns {Object} 月供明细数据，包含原始月供和当前月供
+     */
+    getMonthlyPaymentComparisonData(paymentType) {
+        const originalSchedule = paymentType === 'equal-installment' 
+            ? this.originalEqualInstallmentSchedule 
+            : this.originalEqualPrincipalSchedule;
+            
+        const currentSchedule = paymentType === 'equal-installment' 
+            ? this.equalInstallmentSchedule 
+            : this.equalPrincipalSchedule;
+        
+        // 创建月供数据数组
+        const months = [];
+        const originalPayments = [];
+        const currentPayments = [];
+        
+        // 获取最大期数
+        const maxMonths = Math.max(originalSchedule.length, currentSchedule.length);
+        
+        for (let i = 0; i < maxMonths; i++) {
+            // 月份
+            months.push(i + 1);
+            
+            // 原始月供
+            if (i < originalSchedule.length) {
+                originalPayments.push(originalSchedule[i].payment);
+            } else {
+                originalPayments.push(0);
+            }
+            
+            // 当前月供
+            if (i < currentSchedule.length) {
+                currentPayments.push(currentSchedule[i].payment);
+            } else {
+                currentPayments.push(0);
+            }
+        }
+        
+        return {
+            months,
+            originalPayments,
+            currentPayments
+        };
+    }
+    
+    /**
+     * 获取提前还款历史记录
+     * @returns {Array} 提前还款历史记录
+     */
+    getPrepaymentHistory() {
+        return this.prepaymentHistory.map(item => ({
+            month: item.month,
+            amount: item.amount / 10000, // 转回万元
+            type: item.type,
+            paymentType: item.paymentType,
+            date: item.date
+        }));
     }
 }
 
