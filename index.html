@@ -125,8 +125,33 @@
                                         </div>
                                     </div>
                                     
-                                    <button type="submit" class="btn btn-success w-100">计算提前还款方案</button>
+                                    <div class="d-grid gap-2">
+                                        <button type="submit" class="btn btn-success">添加提前还款</button>
+                                        <button type="button" id="clearPrepayments" class="btn btn-outline-danger">清除所有提前还款</button>
+                                    </div>
                                 </form>
+                                
+                                <!-- 提前还款历史记录 -->
+                                <div class="mt-4">
+                                    <h5>提前还款历史记录</h5>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered" id="prepaymentHistoryTable">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>序号</th>
+                                                    <th>还款时间</th>
+                                                    <th>还款金额</th>
+                                                    <th>还款方式</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="prepaymentHistoryBody">
+                                                <tr>
+                                                    <td colspan="4" class="text-center">暂无提前还款记录</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -190,9 +215,27 @@
                                     </div>
                                 </div>
                                 
-                                <!-- 提前还款对比图表 -->
+                                <!-- 原有提前还款对比图表 -->
                                 <div class="chart-container mt-4">
                                     <canvas id="prepaymentComparisonChart"></canvas>
+                                </div>
+                                
+                                <!-- 新增月供变化对比图表 -->
+                                <div class="mt-5">
+                                    <h5 class="text-center mb-3">提前还款前后月供对比</h5>
+                                    <div class="d-flex justify-content-end mb-2">
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" class="btn btn-outline-primary active" id="showLineChartBtn">折线图</button>
+                                            <button type="button" class="btn btn-outline-primary" id="showBarChartBtn">柱状图</button>
+                                        </div>
+                                    </div>
+                                    <div class="chart-container" style="height: 400px;">
+                                        <canvas id="monthlyPaymentComparisonChart"></canvas>
+                                    </div>
+                                    <div class="small text-muted text-center mt-2">
+                                        <span class="badge bg-primary me-1">蓝色</span>原始月供
+                                        <span class="badge bg-success ms-3 me-1">绿色</span>当前月供
+                                    </div>
                                 </div>
                             </div>
                         </div>

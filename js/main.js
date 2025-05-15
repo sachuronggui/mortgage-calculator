@@ -10,6 +10,10 @@ let combinedCalculator = null; // 组合贷款计算器实例
 let comparisonChart = null;
 let prepaymentComparisonChart = null;
 let combinedLoanChart = null; // 组合贷款图表实例
+let monthlyPaymentComparisonChart = null; // 提前还款前后月供对比图表实例
+
+// 图表类型
+let paymentComparisonChartType = 'line'; // 默认为折线图
 
 // DOM元素引用
 const loanForm = document.getElementById('loanForm');
@@ -20,6 +24,9 @@ const loanAmountInput = document.getElementById('loanAmount');
 const interestRateInput = document.getElementById('interestRate');
 const loanTermSelect = document.getElementById('loanTerm');
 const showFullPaymentScheduleCheckbox = document.getElementById('showFullPaymentSchedule');
+const clearPrepaymentsBtn = document.getElementById('clearPrepayments');
+const showLineChartBtn = document.getElementById('showLineChartBtn');
+const showBarChartBtn = document.getElementById('showBarChartBtn');
 
 // 组合贷款元素引用
 const calculateCombinedBtn = document.getElementById('calculateCombinedBtn');
@@ -41,6 +48,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 组合贷款相关事件监听
     calculateCombinedBtn.addEventListener('click', handleCombinedLoanCalculate);
     showFullCombinedScheduleCheckbox.addEventListener('change', toggleFullCombinedSchedule);
+    
+    // 清除所有提前还款
+    clearPrepaymentsBtn.addEventListener('click', handleClearPrepayments);
+    
+    // 图表类型切换
+    showLineChartBtn.addEventListener('click', () => switchChartType('line'));
+    showBarChartBtn.addEventListener('click', () => switchChartType('bar'));
 });
 
 /**
@@ -106,8 +120,279 @@ function handlePrepaymentFormSubmit(event) {
         return;
     }
     
+    // 添加提前还款
+    const success = calculator.addPrepayment(prepaymentMonth, prepaymentAmount, prepaymentType, paymentType);
+    
+    if (!success) {
+        alert('提前还款月份或金额无效，请检查');
+        return;
+    }
+    
+    // 清空表单
+    document.getElementById('prepaymentMonth').value = '';
+    document.getElementById('prepaymentAmount').value = '';
+    
+    // 更新提前还款历史记录
+    displayPrepaymentHistory();
+    
+    // 更新还款计划表
+    displayPaymentSchedule(showFullPaymentScheduleCheckbox.checked);
+    
+    // 显示提前还款分析结果
+    if (prepaymentType === 'reduce-term') {
+        const result = calculator.calculateReducedTermPrepayment(prepaymentMonth, prepaymentAmount, paymentType);
+        displayReducedTermResults(result, prepaymentMonth, prepaymentAmount);
+        // 隐藏减少月供结果
+        document.getElementById('reducedPaymentResults').innerHTML = '';
+    } else {
+        const result = calculator.calculateReducedPaymentPrepayment(prepaymentMonth, prepaymentAmount, paymentType);
+        displayReducedPaymentResults(result, prepaymentMonth, prepaymentAmount);
+        // 隐藏缩短期限结果
+        document.getElementById('reducedTermResults').innerHTML = '';
+    }
+    
+    // 显示提前还款前后对比图表
+    displayPrepaymentComparisonChart(prepaymentMonth, prepaymentAmount, prepaymentType, paymentType);
+    
+    // 显示月供对比图表
+    displayMonthlyPaymentComparisonChart(paymentType);
+    
+    // 显示详细还款计划
+    displayDetailedPrepaymentSchedule(prepaymentMonth, prepaymentAmount, prepaymentType, paymentType);
+    
+    // 滚动到结果区域
+    document.getElementById('prepaymentResults').scrollIntoView({ behavior: 'smooth' });
+}
+
+/**
+ * 清除所有提前还款
+ */
+function handleClearPrepayments() {
+    // 如果还没有计算基本贷款，则返回
+    if (!calculator) {
+        return;
+    }
+    
+    // 清除所有提前还款记录
+    calculator.clearPrepayments();
+    
+    // 更新提前还款历史记录
+    displayPrepaymentHistory();
+    
+    // 更新还款计划表
+    displayPaymentSchedule(showFullPaymentScheduleCheckbox.checked);
+    
+    // 更新提前还款分析结果
+    const reducedTermResults = document.getElementById('reducedTermResults');
+    const reducedPaymentResults = document.getElementById('reducedPaymentResults');
+    
+    reducedTermResults.innerHTML = '<p>请先设置提前还款方案</p>';
+    reducedPaymentResults.innerHTML = '<p>请先设置提前还款方案</p>';
+    
+    // 清除图表
+    if (prepaymentComparisonChart) {
+        prepaymentComparisonChart.destroy();
+        prepaymentComparisonChart = null;
+    }
+    
+    if (monthlyPaymentComparisonChart) {
+        monthlyPaymentComparisonChart.destroy();
+        monthlyPaymentComparisonChart = null;
+    }
+}
+
+/**
+ * 显示提前还款历史记录
+ */
+function displayPrepaymentHistory() {
+    const historyTable = document.getElementById('prepaymentHistoryTable');
+    const historyBody = document.getElementById('prepaymentHistoryBody');
+    
+    // 清空表格
+    historyBody.innerHTML = '';
+    
+    // 获取提前还款历史记录
+    const history = calculator.getPrepaymentHistory();
+    
+    if (history.length === 0) {
+        historyBody.innerHTML = '<tr><td colspan="4" class="text-center">暂无提前还款记录</td></tr>';
+        return;
+    }
+    
+    // 填充表格
+    history.forEach((item, index) => {
+        const row = document.createElement('tr');
+        
+        // 格式化还款方式
+        let prepaymentTypeText = '';
+        if (item.type === 'reduce-term') {
+            prepaymentTypeText = '缩短期限';
+        } else {
+            prepaymentTypeText = '减少月供';
+        }
+        
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>第${item.month}期</td>
+            <td>${item.amount.toFixed(2)}万元</td>
+            <td>${prepaymentTypeText}</td>
+        `;
+        
+        historyBody.appendChild(row);
+    });
+}
+
+/**
+ * 显示月供对比图表
+ * @param {string} paymentType - 还款方式
+ */
+function displayMonthlyPaymentComparisonChart(paymentType) {
+    // 获取Canvas元素
+    const ctx = document.getElementById('monthlyPaymentComparisonChart').getContext('2d');
+    
+    // 如果已经存在图表，则销毁它
+    if (monthlyPaymentComparisonChart) {
+        monthlyPaymentComparisonChart.destroy();
+    }
+    
+    // 获取月供数据
+    const paymentData = calculator.getMonthlyPaymentComparisonData(paymentType);
+    
+    // 为了图表美观性，如果期数过多（超过120个月），每半年取一个点
+    let months = paymentData.months;
+    let originalPayments = paymentData.originalPayments;
+    let currentPayments = paymentData.currentPayments;
+    
+    if (months.length > 120) {
+        const sampledMonths = [];
+        const sampledOriginalPayments = [];
+        const sampledCurrentPayments = [];
+        
+        for (let i = 0; i < months.length; i += 6) {
+            sampledMonths.push(months[i]);
+            sampledOriginalPayments.push(originalPayments[i]);
+            sampledCurrentPayments.push(currentPayments[i]);
+        }
+        
+        months = sampledMonths;
+        originalPayments = sampledOriginalPayments;
+        currentPayments = sampledCurrentPayments;
+    }
+    
+    // 创建图表数据
+    const data = {
+        labels: months,
+        datasets: [
+            {
+                label: '原始月供',
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 2,
+                data: originalPayments.map(payment => payment / 10000), // 转换为万元
+                pointRadius: months.length > 60 ? 0 : 3, // 如果点太多，不显示点
+                pointHoverRadius: 5
+            },
+            {
+                label: '当前月供',
+                backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 2,
+                data: currentPayments.map(payment => payment / 10000), // 转换为万元
+                pointRadius: months.length > 60 ? 0 : 3, // 如果点太多，不显示点
+                pointHoverRadius: 5
+            }
+        ]
+    };
+    
+    // 图表配置
+    const options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            x: {
+                title: {
+                    display: true,
+                    text: '还款期数'
+                },
+                ticks: {
+                    maxTicksLimit: 20 // 限制横轴标签数量
+                }
+            },
+            y: {
+                title: {
+                    display: true,
+                    text: '月供 (万元)'
+                }
+            }
+        },
+        plugins: {
+            title: {
+                display: true,
+                text: '提前还款前后月供对比'
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.dataset.label + ': ' + context.raw.toFixed(2) + ' 万元';
+                    }
+                }
+            }
+        }
+    };
+    
+    // 创建图表
+    monthlyPaymentComparisonChart = new Chart(ctx, {
+        type: paymentComparisonChartType,
+        data: data,
+        options: options
+    });
+}
+
+/**
+ * 切换图表类型
+ * @param {string} type - 图表类型 ('line' 或 'bar')
+ */
+function switchChartType(type) {
+    if (type === paymentComparisonChartType) {
+        return; // 如果类型相同，不做操作
+    }
+    
+    paymentComparisonChartType = type;
+    
+    // 更新按钮状态
+    if (type === 'line') {
+        showLineChartBtn.classList.add('active');
+        showBarChartBtn.classList.remove('active');
+    } else {
+        showLineChartBtn.classList.remove('active');
+        showBarChartBtn.classList.add('active');
+    }
+    
+    // 如果有计算器和图表实例，则重新显示图表
+    if (calculator && monthlyPaymentComparisonChart) {
+        const paymentType = document.querySelector('input[name="paymentType"]:checked').value;
+        displayMonthlyPaymentComparisonChart(paymentType);
+    }
+}
+
+/**
+ * 显示提前还款分析结果
+ * @param {number} prepaymentMonth - 提前还款月份
+ * @param {number} prepaymentAmount - 提前还款金额
+ * @param {string} prepaymentType - 提前还款方式
+ * @param {string} paymentType - 还款方式
+ */
+function displayPrepaymentResults(prepaymentMonth, prepaymentAmount, prepaymentType, paymentType) {
     // 计算提前还款方案
-    displayPrepaymentResults(prepaymentMonth, prepaymentAmount, prepaymentType, paymentType);
+    const reducedTermResult = calculator.calculateReducedTermPrepayment(prepaymentMonth, prepaymentAmount, paymentType);
+    const reducedPaymentResult = calculator.calculateReducedPaymentPrepayment(prepaymentMonth, prepaymentAmount, paymentType);
+    
+    // 显示结果
+    displayReducedTermResults(reducedTermResult, prepaymentMonth, prepaymentAmount);
+    displayReducedPaymentResults(reducedPaymentResult, prepaymentMonth, prepaymentAmount);
+    
+    // 显示提前还款对比图表
+    displayPrepaymentComparisonChart(prepaymentMonth, prepaymentAmount, prepaymentType, paymentType);
 }
 
 /**
@@ -423,187 +708,217 @@ function createMonthlyPaymentChart() {
 }
 
 /**
- * 显示提前还款结果
- * @param {number} prepaymentMonth - 提前还款月份
- * @param {number} prepaymentAmount - 提前还款金额
- * @param {string} prepaymentType - 提前还款方式
- * @param {string} paymentType - 还款方式
- */
-function displayPrepaymentResults(prepaymentMonth, prepaymentAmount, prepaymentType, paymentType) {
-    // 根据提前还款方式选择计算方法
-    if (prepaymentType === 'reduce-term') {
-        // 缩短还款期限
-        const result = calculator.calculateReducedTermPrepayment(prepaymentMonth, prepaymentAmount, paymentType);
-        displayReducedTermResults(result, prepaymentMonth, prepaymentAmount);
-    } else {
-        // 减少月供金额
-        const result = calculator.calculateReducedPaymentPrepayment(prepaymentMonth, prepaymentAmount, paymentType);
-        displayReducedPaymentResults(result, prepaymentMonth, prepaymentAmount);
-    }
-    
-    // 显示提前还款对比图表
-    displayPrepaymentComparisonChart(prepaymentMonth, prepaymentAmount, prepaymentType, paymentType);
-}
-
-/**
  * 显示缩短还款期限的提前还款结果
  * @param {Object} result - 计算结果
  * @param {number} prepaymentMonth - 提前还款月份
- * @param {number} prepaymentAmount - 提前还款金额
+ * @param {number} prepaymentAmount - 提前还款金额(万元)
  */
 function displayReducedTermResults(result, prepaymentMonth, prepaymentAmount) {
-    const container = document.getElementById('reducedTermResults');
+    const reducedTermResults = document.getElementById('reducedTermResults');
     
     if (!result) {
-        container.innerHTML = '<p>提前还款月份超过了总还款期限</p>';
+        reducedTermResults.innerHTML = '<p class="text-danger">提前还款方案计算失败，请检查输入数据</p>';
         return;
     }
     
-    if (result.fullPayoff) {
-        container.innerHTML = `
-            <p class="text-success-highlight">恭喜！您可以在第${prepaymentMonth}个月一次性还清所有贷款！</p>
-            <p>提前还款金额：${formatCurrency(prepaymentAmount * 10000)}</p>
-            <p>节省的利息：${formatCurrency(result.interestSaved)}</p>
-            <p>提前结束：${result.monthsReduced}个月(${(result.monthsReduced / 12).toFixed(1)}年)</p>
-        `;
-    } else {
-        container.innerHTML = `
-            <p>在第${prepaymentMonth}个月提前还款${formatCurrency(prepaymentAmount * 10000)}元，选择缩短期限</p>
-            <p>原还款期限：${result.originalTotalMonths}个月(${(result.originalTotalMonths / 12).toFixed(1)}年)</p>
-            <p>新还款期限：<strong>${result.newTotalMonths}个月(${(result.newTotalMonths / 12).toFixed(1)}年)</strong></p>
-            <p>缩短期限：<span class="text-success-highlight">${result.monthsReduced}个月(${(result.monthsReduced / 12).toFixed(1)}年)</span></p>
-            <p>节省利息：<span class="text-success-highlight">${formatCurrency(result.interestSaved)}</span></p>
-        `;
-    }
+    const template = `
+        <div class="prepayment-analysis">
+            <div class="analysis-header">
+                <h4>缩短还款期限方案分析</h4>
+                <p class="text-muted">第${prepaymentMonth}期提前还款${formatCurrency(prepaymentAmount * 10000)}</p>
+            </div>
+            
+            <div class="analysis-grid">
+                <div class="analysis-item highlight">
+                    <span class="label">节省总利息</span>
+                    <span class="value text-success">${formatCurrency(result.interestSaved)}</span>
+                </div>
+                
+                <div class="analysis-item">
+                    <span class="label">原始总利息</span>
+                    <span class="value">${formatCurrency(result.totalInterestOriginal)}</span>
+                </div>
+                
+                <div class="analysis-item">
+                    <span class="label">新总利息</span>
+                    <span class="value">${formatCurrency(result.totalInterestNew)}</span>
+                </div>
+                
+                <div class="analysis-item highlight">
+                    <span class="label">缩短期限</span>
+                    <span class="value text-primary">${result.monthsReduced}个月</span>
+                    <span class="sub-value">（${Math.floor(result.monthsReduced/12)}年${result.monthsReduced%12}个月）</span>
+                </div>
+                
+                <div class="analysis-item">
+                    <span class="label">原始还款期限</span>
+                    <span class="value">${result.originalTotalMonths}期</span>
+                    <span class="sub-value">（${Math.floor(result.originalTotalMonths/12)}年${result.originalTotalMonths%12}个月）</span>
+                </div>
+                
+                <div class="analysis-item">
+                    <span class="label">新还款期限</span>
+                    <span class="value">${result.newTotalMonths}期</span>
+                    <span class="sub-value">（${Math.floor(result.newTotalMonths/12)}年${result.newTotalMonths%12}个月）</span>
+                </div>
+            </div>
+            
+            ${result.fullPayoff ? 
+                '<div class="alert alert-success mt-3">提前还款金额足够还清所有贷款！</div>' : 
+                '<div class="text-muted mt-3">月供金额保持不变，但还款期限缩短。</div>'
+            }
+        </div>
+    `;
+    
+    reducedTermResults.innerHTML = template;
 }
 
 /**
  * 显示减少月供金额的提前还款结果
  * @param {Object} result - 计算结果
  * @param {number} prepaymentMonth - 提前还款月份
- * @param {number} prepaymentAmount - 提前还款金额
+ * @param {number} prepaymentAmount - 提前还款金额(万元)
  */
 function displayReducedPaymentResults(result, prepaymentMonth, prepaymentAmount) {
-    const container = document.getElementById('reducedPaymentResults');
+    const reducedPaymentResults = document.getElementById('reducedPaymentResults');
     
     if (!result) {
-        container.innerHTML = '<p>提前还款月份超过了总还款期限</p>';
+        reducedPaymentResults.innerHTML = '<p class="text-danger">提前还款方案计算失败，请检查输入数据</p>';
         return;
     }
     
-    if (result.fullPayoff) {
-        container.innerHTML = `
-            <p class="text-success-highlight">恭喜！您可以在第${prepaymentMonth}个月一次性还清所有贷款！</p>
-            <p>提前还款金额：${formatCurrency(prepaymentAmount * 10000)}</p>
-            <p>节省的利息：${formatCurrency(result.interestSaved)}</p>
-            <p>月供减少：${formatCurrency(result.paymentReduction)}</p>
-        `;
-    } else {
-        const paymentType = document.querySelector('input[name="paymentType"]:checked').value;
-        
-        if (paymentType === 'equal-installment') {
-            container.innerHTML = `
-                <p>在第${prepaymentMonth}个月提前还款${formatCurrency(prepaymentAmount * 10000)}元，选择减少月供</p>
-                <p>原月供：${formatCurrency(result.originalMonthlyPayment)}</p>
-                <p>新月供：<strong>${formatCurrency(result.newMonthlyPayment)}</strong></p>
-                <p>月供减少：<span class="text-success-highlight">${formatCurrency(result.paymentReduction)}</span></p>
-                <p>节省利息：<span class="text-success-highlight">${formatCurrency(result.interestSaved)}</span></p>
-            `;
-        } else {
-            container.innerHTML = `
-                <p>在第${prepaymentMonth}个月提前还款${formatCurrency(prepaymentAmount * 10000)}元，选择减少月供</p>
-                <p>原首月月供：${formatCurrency(result.originalFirstMonthPayment)}</p>
-                <p>新首月月供：<strong>${formatCurrency(result.newFirstMonthPayment)}</strong></p>
-                <p>首月月供减少：<span class="text-success-highlight">${formatCurrency(result.paymentReduction)}</span></p>
-                <p>节省利息：<span class="text-success-highlight">${formatCurrency(result.interestSaved)}</span></p>
-                <p class="text-muted">注：等额本金方式下，月供会逐月递减</p>
-            `;
-        }
-    }
+    const template = `
+        <div class="prepayment-analysis">
+            <div class="analysis-header">
+                <h4>减少月供方案分析</h4>
+                <p class="text-muted">第${prepaymentMonth}期提前还款${formatCurrency(prepaymentAmount * 10000)}</p>
+            </div>
+            
+            <div class="analysis-grid">
+                <div class="analysis-item highlight">
+                    <span class="label">节省总利息</span>
+                    <span class="value text-success">${formatCurrency(result.interestSaved)}</span>
+                </div>
+                
+                <div class="analysis-item">
+                    <span class="label">原始总利息</span>
+                    <span class="value">${formatCurrency(result.totalInterestOriginal)}</span>
+                </div>
+                
+                <div class="analysis-item">
+                    <span class="label">新总利息</span>
+                    <span class="value">${formatCurrency(result.totalInterestNew)}</span>
+                </div>
+                
+                <div class="analysis-item highlight">
+                    <span class="label">月供减少</span>
+                    <span class="value text-primary">-${formatCurrency(result.monthlyPaymentReduction)}</span>
+                </div>
+                
+                <div class="analysis-item">
+                    <span class="label">原始月供</span>
+                    <span class="value">${formatCurrency(result.originalMonthlyPayment)}</span>
+                </div>
+                
+                <div class="analysis-item">
+                    <span class="label">新月供</span>
+                    <span class="value">${formatCurrency(result.newMonthlyPayment)}</span>
+                </div>
+            </div>
+            
+            ${result.fullPayoff ? 
+                '<div class="alert alert-success mt-3">提前还款金额足够还清所有贷款！</div>' : 
+                '<div class="text-muted mt-3">还款期限保持不变，但月供金额减少。</div>'
+            }
+        </div>
+    `;
+    
+    reducedPaymentResults.innerHTML = template;
 }
 
 /**
  * 显示提前还款对比图表
  * @param {number} prepaymentMonth - 提前还款月份
- * @param {number} prepaymentAmount - 提前还款金额
+ * @param {number} prepaymentAmount - 提前还款金额(万元)
  * @param {string} prepaymentType - 提前还款方式
  * @param {string} paymentType - 还款方式
  */
 function displayPrepaymentComparisonChart(prepaymentMonth, prepaymentAmount, prepaymentType, paymentType) {
-    // 获取Canvas元素
-    const ctx = document.getElementById('prepaymentComparisonChart').getContext('2d');
+    const chartContainer = document.getElementById('prepaymentComparisonChart');
     
-    // 如果已经存在图表，则销毁它
+    // 如果已存在图表，先销毁
     if (prepaymentComparisonChart) {
         prepaymentComparisonChart.destroy();
     }
     
-    // 计算结果
-    let reducedTermResult = calculator.calculateReducedTermPrepayment(prepaymentMonth, prepaymentAmount, paymentType);
-    let reducedPaymentResult = calculator.calculateReducedPaymentPrepayment(prepaymentMonth, prepaymentAmount, paymentType);
+    // 获取原始数据和提前还款后的数据
+    const result = prepaymentType === 'reduce-term' 
+        ? calculator.calculateReducedTermPrepayment(prepaymentMonth, prepaymentAmount, paymentType)
+        : calculator.calculateReducedPaymentPrepayment(prepaymentMonth, prepaymentAmount, paymentType);
     
-    // 如果是全部还清的情况，使用相同的结果
-    if (reducedTermResult && reducedTermResult.fullPayoff) {
-        reducedPaymentResult = reducedTermResult;
-    }
+    if (!result) return;
     
-    // 准备图表数据
-    const labels = ['不提前还款', '缩短还款期限', '减少月供'];
-    const interestData = [
-        calculator.getEqualInstallmentSummary().totalInterest / 10000,
-        reducedTermResult ? reducedTermResult.totalInterestNew / 10000 : 0,
-        reducedPaymentResult ? reducedPaymentResult.totalInterestNew / 10000 : 0
-    ];
-    
-    // 计算节省的利息
-    const interestSavedData = [
-        0,
-        reducedTermResult ? (reducedTermResult.interestSaved / 10000) : 0,
-        reducedPaymentResult ? (reducedPaymentResult.interestSaved / 10000) : 0
-    ];
-    
-    // 创建图表数据
+    // 准备数据
     const data = {
-        labels: labels,
+        labels: ['总还款额', '已还金额', '待还金额', '已付利息', '待付利息', '节省利息'],
         datasets: [
             {
-                label: '支付利息',
-                backgroundColor: 'rgba(255, 99, 132, 0.5)',
-                borderColor: 'rgba(255, 99, 132, 1)',
-                borderWidth: 1,
-                data: interestData
+                label: '提前还款前',
+                data: [
+                    result.totalPaymentOriginal,
+                    result.paidAmount,
+                    result.totalPaymentOriginal - result.paidAmount,
+                    result.paidInterest,
+                    result.totalInterestOriginal - result.paidInterest,
+                    0
+                ],
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
             },
             {
-                label: '节省利息',
+                label: '提前还款后',
+                data: [
+                    result.totalPaymentNew,
+                    result.paidAmount + prepaymentAmount * 10000,
+                    result.totalPaymentNew - (result.paidAmount + prepaymentAmount * 10000),
+                    result.paidInterest,
+                    result.totalInterestNew - result.paidInterest,
+                    result.interestSaved
+                ],
                 backgroundColor: 'rgba(75, 192, 192, 0.5)',
                 borderColor: 'rgba(75, 192, 192, 1)',
-                borderWidth: 1,
-                data: interestSavedData
+                borderWidth: 1
             }
         ]
     };
     
-    // 图表配置
+    // 配置选项
     const options = {
         responsive: true,
         maintainAspectRatio: false,
-        scales: {
-            y: {
-                title: {
-                    display: true,
-                    text: '金额 (万元)'
-                }
-            }
-        },
         plugins: {
             title: {
                 display: true,
-                text: '提前还款方案对比'
+                text: '提前还款前后对比分析',
+                font: {
+                    size: 16
+                }
             },
             tooltip: {
                 callbacks: {
                     label: function(context) {
-                        return context.dataset.label + ': ' + context.raw.toFixed(2) + ' 万元';
+                        return context.dataset.label + ': ' + formatCurrency(context.raw);
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return formatCurrency(value);
                     }
                 }
             }
@@ -611,7 +926,7 @@ function displayPrepaymentComparisonChart(prepaymentMonth, prepaymentAmount, pre
     };
     
     // 创建图表
-    prepaymentComparisonChart = new Chart(ctx, {
+    prepaymentComparisonChart = new Chart(chartContainer, {
         type: 'bar',
         data: data,
         options: options
@@ -946,4 +1261,103 @@ function displayCombinedLoanChart() {
 function displayMonthlyPaymentChangeChart() {
     // 可以在这里添加一个新图表来展示月供随时间的变化
     // 这个功能可以根据需要进一步实现
+}
+
+function displayDetailedPrepaymentSchedule(prepaymentMonth, prepaymentAmount, prepaymentType, paymentType) {
+    const scheduleContainer = document.getElementById('detailedPrepaymentSchedule');
+    
+    // 获取提前还款结果
+    const result = prepaymentType === 'reduce-term' 
+        ? calculator.calculateReducedTermPrepayment(prepaymentMonth, prepaymentAmount, paymentType)
+        : calculator.calculateReducedPaymentPrepayment(prepaymentMonth, prepaymentAmount, paymentType);
+    
+    if (!result) {
+        scheduleContainer.innerHTML = '<p class="text-danger">无法生成还款计划，请检查输入数据</p>';
+        return;
+    }
+    
+    // 获取新的还款计划
+    const schedule = result.newSchedule;
+    
+    // 创建表格模板
+    const template = `
+        <div class="detailed-schedule">
+            <div class="schedule-header">
+                <h4>提前还款后的详细还款计划</h4>
+                <p class="text-muted">第${prepaymentMonth}期提前还款${formatCurrency(prepaymentAmount * 10000)}</p>
+            </div>
+            
+            <div class="schedule-summary">
+                <div class="summary-item">
+                    <span class="label">总还款额</span>
+                    <span class="value">${formatCurrency(result.totalPaymentNew)}</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">总利息</span>
+                    <span class="value">${formatCurrency(result.totalInterestNew)}</span>
+                </div>
+                <div class="summary-item highlight">
+                    <span class="label">节省利息</span>
+                    <span class="value text-success">${formatCurrency(result.interestSaved)}</span>
+                </div>
+            </div>
+            
+            <div class="schedule-table-container">
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>期数</th>
+                            <th>还款日期</th>
+                            <th>月供</th>
+                            <th>本金</th>
+                            <th>利息</th>
+                            <th>剩余本金</th>
+                            <th>备注</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${schedule.map((item, index) => `
+                            <tr class="${index + 1 === prepaymentMonth ? 'prepayment-row' : ''}">
+                                <td>${item.month}</td>
+                                <td>${formatDate(addMonths(new Date(), item.month))}</td>
+                                <td>${formatCurrency(item.payment)}</td>
+                                <td>${formatCurrency(item.principal)}</td>
+                                <td>${formatCurrency(item.interest)}</td>
+                                <td>${formatCurrency(item.remainingPrincipal)}</td>
+                                <td>
+                                    ${index + 1 === prepaymentMonth 
+                                        ? `<span class="badge bg-success">提前还款${formatCurrency(prepaymentAmount * 10000)}</span>` 
+                                        : ''}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="schedule-notes">
+                <p class="text-muted">
+                    注：1. 实际还款日期以银行放款日期为准
+                    <br>2. 最后一期还款金额可能会有尾差
+                    ${paymentType === 'equal-principal' ? '<br>3. 等额本金方式下，月供会逐月递减' : ''}
+                </p>
+            </div>
+        </div>
+    `;
+    
+    scheduleContainer.innerHTML = template;
+}
+
+// 辅助函数：格式化日期
+function formatDate(date) {
+    return date.getFullYear() + '-' + 
+           String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+           String(date.getDate()).padStart(2, '0');
+}
+
+// 辅助函数：添加月份
+function addMonths(date, months) {
+    const newDate = new Date(date);
+    newDate.setMonth(date.getMonth() + months - 1);
+    return newDate;
 } 
