@@ -725,41 +725,23 @@ function displayReducedTermResults(result, prepaymentMonth, prepaymentAmount) {
         <div class="prepayment-analysis">
             <div class="analysis-header">
                 <h4>缩短还款期限方案分析</h4>
-                <p class="text-muted">第${prepaymentMonth}期提前还款${formatCurrency(prepaymentAmount * 10000)}</p>
+                <p class="text-muted">在第${prepaymentMonth}期提前还款${formatCurrency(prepaymentAmount * 10000)}</p>
             </div>
             
-            <div class="analysis-grid">
+            <div class="analysis-simple">
                 <div class="analysis-item highlight">
                     <span class="label">节省总利息</span>
                     <span class="value text-success">${formatCurrency(result.interestSaved)}</span>
                 </div>
                 
-                <div class="analysis-item">
-                    <span class="label">原始总利息</span>
-                    <span class="value">${formatCurrency(result.totalInterestOriginal)}</span>
-                </div>
-                
-                <div class="analysis-item">
-                    <span class="label">新总利息</span>
-                    <span class="value">${formatCurrency(result.totalInterestNew)}</span>
-                </div>
-                
                 <div class="analysis-item highlight">
                     <span class="label">缩短期限</span>
-                    <span class="value text-primary">${result.monthsReduced}个月</span>
-                    <span class="sub-value">（${Math.floor(result.monthsReduced/12)}年${result.monthsReduced%12}个月）</span>
-                </div>
-                
-                <div class="analysis-item">
-                    <span class="label">原始还款期限</span>
-                    <span class="value">${result.originalTotalMonths}期</span>
-                    <span class="sub-value">（${Math.floor(result.originalTotalMonths/12)}年${result.originalTotalMonths%12}个月）</span>
+                    <span class="value text-primary">${result.monthsReduced}个月（${Math.floor(result.monthsReduced/12)}年${result.monthsReduced%12}个月）</span>
                 </div>
                 
                 <div class="analysis-item">
                     <span class="label">新还款期限</span>
-                    <span class="value">${result.newTotalMonths}期</span>
-                    <span class="sub-value">（${Math.floor(result.newTotalMonths/12)}年${result.newTotalMonths%12}个月）</span>
+                    <span class="value">${result.newTotalMonths}期（${Math.floor(result.newTotalMonths/12)}年${result.newTotalMonths%12}个月）</span>
                 </div>
             </div>
             
@@ -791,33 +773,18 @@ function displayReducedPaymentResults(result, prepaymentMonth, prepaymentAmount)
         <div class="prepayment-analysis">
             <div class="analysis-header">
                 <h4>减少月供方案分析</h4>
-                <p class="text-muted">第${prepaymentMonth}期提前还款${formatCurrency(prepaymentAmount * 10000)}</p>
+                <p class="text-muted">在第${prepaymentMonth}期提前还款${formatCurrency(prepaymentAmount * 10000)}</p>
             </div>
             
-            <div class="analysis-grid">
+            <div class="analysis-simple">
                 <div class="analysis-item highlight">
                     <span class="label">节省总利息</span>
                     <span class="value text-success">${formatCurrency(result.interestSaved)}</span>
                 </div>
                 
-                <div class="analysis-item">
-                    <span class="label">原始总利息</span>
-                    <span class="value">${formatCurrency(result.totalInterestOriginal)}</span>
-                </div>
-                
-                <div class="analysis-item">
-                    <span class="label">新总利息</span>
-                    <span class="value">${formatCurrency(result.totalInterestNew)}</span>
-                </div>
-                
                 <div class="analysis-item highlight">
                     <span class="label">月供减少</span>
-                    <span class="value text-primary">-${formatCurrency(result.monthlyPaymentReduction)}</span>
-                </div>
-                
-                <div class="analysis-item">
-                    <span class="label">原始月供</span>
-                    <span class="value">${formatCurrency(result.originalMonthlyPayment)}</span>
+                    <span class="value text-primary">${formatCurrency(result.paymentReduction)}</span>
                 </div>
                 
                 <div class="analysis-item">
